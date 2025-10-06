@@ -21,7 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 /**
- * Configuración de Spring Security
+ * Configuración principal de Spring Security para CyberTec Store
  */
 @Configuration
 @EnableWebSecurity
@@ -32,68 +32,91 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-                         JwtAuthenticationFilter jwtAuthenticationFilter) {
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    // 🔑 Encriptador de contraseñas
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // ⚙️ Autenticador global
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
+    // 🧱 Configuración de seguridad HTTP
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // Desactiva CSRF para API REST
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .exceptionHandling(exception -> exception
-                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
+            // Configura CORS permitido
+            .cors(c -> c.configurationSource(corsConfigurationSource()))
+            // Configura manejo de excepciones (401)
+            .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+            // Política sin sesiones (JWT stateless)
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Configura las rutas y permisos
             .authorizeHttpRequests(auth -> auth
-                // Rutas públicas
-                .requestMatchers("/api/auth/**").permitAll()
+                // ✅ Swagger público
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/swagger-resources/**",
+                    "/webjars/**",
+                    "/favicon.ico"
+                ).permitAll()
+
+                // ✅ Endpoint de errores público (evita 401 cuando en realidad es 4xx/5xx)
+                .requestMatchers("/error").permitAll()
+
+                // ✅ Preflight CORS
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
+                // ✅ Endpoints públicos
+                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                 .requestMatchers("/api/products/**").permitAll()
                 .requestMatchers("/api/ai/**").permitAll()
-                
-                // Rutas protegidas para usuarios autenticados
+
+                // 🔒 El resto de /api/auth/** requiere token
+                .requestMatchers("/api/auth/**").authenticated()
+
+                // 🔒 Protegidos (usuarios logueados)
                 .requestMatchers("/api/cart/**").authenticated()
                 .requestMatchers("/api/users/me").authenticated()
-                
-                // Rutas solo para ADMIN
+
+                // 🔒 Solo ADMIN (si tus roles son ROLE_ADMIN)
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
-                
-                // Cualquier otra ruta requiere autenticación
+
+                // 🔒 Cualquier otro endpoint requiere autenticación
                 .anyRequest().authenticated()
             );
 
-        // Agregar filtro JWT
+        // Agrega el filtro JWT antes del UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // 🌍 Configuración de CORS
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5500", "http://127.0.0.1:5500"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-        
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOrigins(Arrays.asList("http://localhost:5500", "http://127.0.0.1:5500"));
+        cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        cfg.setAllowedHeaders(Arrays.asList("*"));
+        cfg.setAllowCredentials(true);
+        cfg.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        
+        source.registerCorsConfiguration("/**", cfg);
         return source;
     }
 }

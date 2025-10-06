@@ -1,6 +1,7 @@
 package com.cybertec.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,75 +11,61 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 
-/**
- * Utilidad para generar y validar tokens JWT
- */
 @Component
 public class JwtUtil {
 
     private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
-    @Value("${jwt.secret:cybertec-super-secret-key-2025-muy-larga-para-ser-segura}")
-    private String jwtSecret;
+    // ✅ Usa una clave BASE64 de ≥64 bytes (ejemplo seguro para dev)
+    @Value("${jwt.secret:ZRlq2QKq5TgGgq1T3Qk3J5kY8lq1m4z6w7x9y1A3B5C7D9E1F3H5J7L9N1P3R5T7V9X1Z3b5d7f9h1j3l5n7p9r1t3v5x7z9==}")
+    private String jwtSecretB64;
 
-    @Value("${jwt.expiration:86400000}") // 24 horas en milisegundos
+    @Value("${jwt.expiration:86400000}")
     private long jwtExpirationMs;
 
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        // ✅ Decodifica Base64 y garantiza tamaño correcto para HS512
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecretB64);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /**
-     * Generar token JWT
-     */
     public String generateToken(String username, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
+        Date exp = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
                 .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .setExpiration(exp)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512) // ✅ HS512 con clave fuerte
                 .compact();
     }
 
-    /**
-     * Obtener username del token
-     */
     public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
-                .getBody();
-
-        return claims.getSubject();
+                .getBody()
+                .getSubject();
     }
 
-    /**
-     * Obtener rol del token
-     */
     public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
-                .getBody();
-
-        return claims.get("role", String.class);
+                .getBody()
+                .get("role", String.class);
     }
 
-    /**
-     * Validar token
-     */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token);
             return true;
         } catch (SecurityException ex) {
             log.error("JWT signature inválida");
