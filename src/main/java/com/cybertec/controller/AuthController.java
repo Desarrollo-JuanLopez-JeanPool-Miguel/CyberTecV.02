@@ -7,12 +7,18 @@ import com.cybertec.model.Role;
 import com.cybertec.model.User;
 import com.cybertec.security.JwtUtil;
 import com.cybertec.service.UserService;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +26,7 @@ import java.util.Map;
 /**
  * Controller de Autenticación
  */
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"})
@@ -132,31 +139,22 @@ public class AuthController {
      * Validar token
      */
     @GetMapping("/validate")
-    public ResponseEntity<?> validateToken(@RequestHeader("Authorization") String authHeader) {
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valid", false));
-            }
-
-            String token = authHeader.substring(7);
-            boolean isValid = jwtUtil.validateToken(token);
-
-            if (isValid) {
-                String username = jwtUtil.getUsernameFromToken(token);
-                String role = jwtUtil.getRoleFromToken(token);
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("valid", true);
-                response.put("username", username);
-                response.put("role", role);
-
-                return ResponseEntity.ok(response);
-            }
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valid", false));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("valid", false));
-        }
+public ResponseEntity<?> validate(Authentication auth) {
+    if (auth == null || !auth.isAuthenticated()) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("valid", false));
     }
+
+    var authorities = auth.getAuthorities()
+            .stream()
+            .map(GrantedAuthority::getAuthority)
+            .toList();
+
+    return ResponseEntity.ok(Map.of(
+            "valid", true,
+            "username", auth.getName(),
+            "authorities", authorities
+    ));
 }
+}
+

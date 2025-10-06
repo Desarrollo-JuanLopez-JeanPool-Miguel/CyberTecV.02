@@ -31,6 +31,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.jwtUtil = jwtUtil;
     }
 
+    // ✅ NO filtrar auth y swagger (evita 401 en /api/auth/register & /login)
+  @Override
+protected boolean shouldNotFilter(HttpServletRequest request) {
+    String p = request.getRequestURI();
+    return p.equals("/api/auth/login")
+        || p.equals("/api/auth/register")
+        || p.startsWith("/v3/api-docs")
+        || p.startsWith("/swagger-ui")
+        || p.startsWith("/swagger-resources")
+        || "/swagger-ui.html".equals(p)
+        || "/favicon.ico".equals(p);
+}
+
+
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                    HttpServletResponse response,
