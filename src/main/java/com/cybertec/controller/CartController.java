@@ -3,145 +3,167 @@ package com.cybertec.controller;
 import com.cybertec.model.Cart;
 import com.cybertec.model.User;
 import com.cybertec.service.CartService;
-import com.cybertec.service.UserService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
 
 /**
- * Controller de Carrito
+ * Controlador del Carrito de Compras
+ * Requiere autenticación JWT
  */
 @RestController
 @RequestMapping("/api/cart")
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"})
+@CrossOrigin(origins = "*")
+@Tag(name = "Carrito de Compras", description = "Gestión del carrito de compras del usuario")
+@SecurityRequirement(name = "Bearer Authentication")
 public class CartController {
 
-    private static final Logger log = LoggerFactory.getLogger(CartController.class);
-    
-    private final CartService cartService;
-    private final UserService userService;
+     private final CartService cartService;
 
-    public CartController(CartService cartService, UserService userService) {
+    public CartController(CartService cartService) {
         this.cartService = cartService;
-        this.userService = userService;
-    }
+     }
+
+    // ========== VER CARRITO ==========
 
     /**
+     * Obtener el carrito del usuario autenticado
      * GET /api/cart
-     * Obtener carrito del usuario actual
      */
     @GetMapping
-    public ResponseEntity<Cart> getCart(Authentication authentication) {
-        log.info("GET /api/cart");
-        Long userId = getUserIdFromAuth(authentication);
-        return ResponseEntity.ok(cartService.getCartByUserId(userId));
+    @Operation(summary = "Ver mi carrito", 
+               description = "Obtiene el carrito completo del usuario con todos los items y totales")
+    public ResponseEntity<Cart> getMyCart(@AuthenticationPrincipal User user) {
+        Cart cart = cartService.getCartByUserId(user.getId());
+        return ResponseEntity.ok(cart);
     }
 
+    // ========== AGREGAR AL CARRITO ==========
+
     /**
+     * Agregar un producto al carrito
      * POST /api/cart/items
-     * Agregar item al carrito
+     * Body: { "productId": 1, "quantity": 2 }
      */
     @PostMapping("/items")
-    public ResponseEntity<Cart> addItem(
-            @RequestBody Map<String, Object> request,
-            Authentication authentication) {
-        log.info("POST /api/cart/items");
+    @Operation(summary = "Agregar producto al carrito")
+    public ResponseEntity<Cart> addItemToCart(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, Object> request) {
         
-        Long userId = getUserIdFromAuth(authentication);
         Long productId = Long.valueOf(request.get("productId").toString());
         Integer quantity = Integer.valueOf(request.get("quantity").toString());
         
-        Cart cart = cartService.addItemToCart(userId, productId, quantity);
+        Cart cart = cartService.addItemToCart(user.getId(), productId, quantity);
         return ResponseEntity.ok(cart);
     }
 
+    // ========== ACTUALIZAR CANTIDAD ==========
+
     /**
+     * Actualizar cantidad de un producto en el carrito
+     * PUT /api/cart/items/{productId}
+     * Body: { "quantity": 3 }
+     */
+    @PutMapping("/items/{productId}")
+    @Operation(summary = "Actualizar cantidad de producto")
+    public ResponseEntity<Cart> updateItemQuantity(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long productId,
+            @RequestBody Map<String, Integer> request) {
+        
+        Integer quantity = request.get("quantity");
+        Cart cart = cartService.updateItemQuantity(user.getId(), productId, quantity);
+        return ResponseEntity.ok(cart);
+    }
+
+    // ========== ELIMINAR ITEM ==========
+
+    /**
+     * Eliminar un producto del carrito
      * DELETE /api/cart/items/{productId}
-     * Remover item del carrito
      */
     @DeleteMapping("/items/{productId}")
-    public ResponseEntity<Cart> removeItem(
-            @PathVariable Long productId,
-            Authentication authentication) {
-        log.info("DELETE /api/cart/items/{}", productId);
+    @Operation(summary = "Eliminar producto del carrito")
+    public ResponseEntity<Cart> removeItemFromCart(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long productId) {
         
-        Long userId = getUserIdFromAuth(authentication);
-        Cart cart = cartService.removeItemFromCart(userId, productId);
+        Cart cart = cartService.removeItemFromCart(user.getId(), productId);
         return ResponseEntity.ok(cart);
     }
 
+    // ========== VACIAR CARRITO ==========
+
     /**
-     * PATCH /api/cart/items/{productId}
-     * Actualizar cantidad de un item
+     * Vaciar el carrito completamente
+     * DELETE /api/cart/clear
      */
-    @PatchMapping("/items/{productId}")
-    public ResponseEntity<Cart> updateItemQuantity(
-            @PathVariable Long productId,
-            @RequestBody Map<String, Integer> request,
-            Authentication authentication) {
-        log.info("PATCH /api/cart/items/{}", productId);
-        
-        Long userId = getUserIdFromAuth(authentication);
-        Integer quantity = request.get("quantity");
-        
-        Cart cart = cartService.updateItemQuantity(userId, productId, quantity);
+    @DeleteMapping("/clear")
+    @Operation(summary = "Vaciar carrito")
+    public ResponseEntity<Cart> clearCart(@AuthenticationPrincipal User user) {
+        Cart cart = cartService.clearCart(user.getId());
         return ResponseEntity.ok(cart);
     }
 
-    /**
-     * DELETE /api/cart
-     * Limpiar carrito
-     */
-    @DeleteMapping
-    public ResponseEntity<Cart> clearCart(Authentication authentication) {
-        log.info("DELETE /api/cart");
-        
-        Long userId = getUserIdFromAuth(authentication);
-        Cart cart = cartService.clearCart(userId);
-        return ResponseEntity.ok(cart);
-    }
+    // ========== DESCUENTOS Y ENVÍO ==========
 
     /**
-     * PATCH /api/cart/discount
-     * Aplicar descuento
+     * Aplicar descuento al carrito
+     * PUT /api/cart/discount
+     * Body: { "discount": 50.00 }
      */
-    @PatchMapping("/discount")
+    @PutMapping("/discount")
+    @Operation(summary = "Aplicar descuento")
     public ResponseEntity<Cart> applyDiscount(
-            @RequestBody Map<String, BigDecimal> request,
-            Authentication authentication) {
-        log.info("PATCH /api/cart/discount");
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, BigDecimal> request) {
         
-        Long userId = getUserIdFromAuth(authentication);
         BigDecimal discount = request.get("discount");
-        
-        Cart cart = cartService.applyDiscount(userId, discount);
+        Cart cart = cartService.applyDiscount(user.getId(), discount);
         return ResponseEntity.ok(cart);
     }
 
     /**
-     * GET /api/cart/checkout
-     * Preparar checkout
+     * Actualizar costo de envío
+     * PUT /api/cart/shipping
+     * Body: { "shipping": 15.00 }
      */
-    @GetMapping("/checkout")
-    public ResponseEntity<Cart> prepareCheckout(Authentication authentication) {
-        log.info("GET /api/cart/checkout");
+    @PutMapping("/shipping")
+    @Operation(summary = "Actualizar costo de envío")
+    public ResponseEntity<Cart> updateShipping(
+            @AuthenticationPrincipal User user,
+            @RequestBody Map<String, BigDecimal> request) {
         
-        Long userId = getUserIdFromAuth(authentication);
-        Cart cart = cartService.prepareCheckout(userId);
+        BigDecimal shipping = request.get("shipping");
+        Cart cart = cartService.updateShipping(user.getId(), shipping);
         return ResponseEntity.ok(cart);
     }
 
+    // ========== INFORMACIÓN DEL CARRITO ==========
+
     /**
-     * Obtener ID del usuario autenticado
+     * Obtener resumen del carrito (sin items completos)
+     * GET /api/cart/summary
      */
-    private Long getUserIdFromAuth(Authentication authentication) {
-        String username = authentication.getName();
-        User user = userService.getUserByUsername(username);
-        return user.getId();
+    @GetMapping("/summary")
+    @Operation(summary = "Resumen del carrito")
+    public ResponseEntity<Map<String, Object>> getCartSummary(@AuthenticationPrincipal User user) {
+        Cart cart = cartService.getCartByUserId(user.getId());
+        
+        return ResponseEntity.ok(Map.of(
+            "totalItems", cart.getTotalItems(),
+            "subtotal", cart.getSubtotal(),
+            "discount", cart.getDiscount(),
+            "shipping", cart.getShipping(),
+            "total", cart.getTotal(),
+            "isEmpty", cart.isEmpty()
+        ));
     }
 }

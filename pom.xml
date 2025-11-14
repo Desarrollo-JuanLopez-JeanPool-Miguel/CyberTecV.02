@@ -18,7 +18,7 @@
     <packaging>jar</packaging>
     
     <name>CyberTec Store</name>
-    <description>E-commerce platform for gaming PC components with AI assistant</description>
+    <description>E-commerce platform for gaming PC components with AI assistant - Database Version</description>
     
     <properties>
         <java.version>17</java.version>
@@ -27,7 +27,10 @@
     </properties>
     
     <dependencies>
-        <!-- Spring Boot Starters -->
+        <!-- ================================= -->
+        <!-- SPRING BOOT CORE STARTERS -->
+        <!-- ================================= -->
+        
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -50,7 +53,38 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- JWT Dependencies -->
+        <!-- ================================= -->
+        <!-- DATABASE & JPA -->
+        <!-- ================================= -->
+        
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
+        <!-- MySQL Connector -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        
+        <!-- Flyway para migraciones (opcional pero recomendado) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+        
+        <!-- ================================= -->
+        <!-- JWT AUTHENTICATION -->
+        <!-- ================================= -->
+        
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -71,34 +105,52 @@
             <scope>runtime</scope>
         </dependency>
         
-        <!-- Swagger/OpenAPI Documentation -->
+        <!-- ================================= -->
+        <!-- API DOCUMENTATION -->
+        <!-- ================================= -->
+        
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
         </dependency>
         
-        <!-- Google Generative AI (Gemini) -->
+        <!-- ================================= -->
+        <!-- AI INTEGRATION - GEMINI -->
+        <!-- ================================= -->
+        
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-aiplatform</artifactId>
             <version>3.31.0</version>
-        </dependency>
-        
-        <!-- HTTP Client para Gemini API -->
+        </dependency>  
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
             <version>4.12.0</version>
+            
         </dependency>
-        
-        <!-- JSON Processing -->
+
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
         
-        <!-- Testing -->
+        <!-- ================================= -->
+        <!-- UTILITIES -->
+        <!-- ================================= -->
+        
+        <!-- Lombok - Reduce boilerplate code -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        
+        <!-- ================================= -->
+        <!-- TESTING -->
+        <!-- ================================= -->
+        
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -110,13 +162,14 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-
-	<dependency>
-  <groupId>org.springdoc</groupId>
-  <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-  <version>2.5.0</version>
-</dependency>
-
+        
+        <!-- H2 Database para testing -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
     </dependencies>
     
     <build>
@@ -124,6 +177,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
             </plugin>
         </plugins>
     </build>

@@ -79,9 +79,16 @@ public class SecurityConfig {
                 // ✅ Preflight CORS
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
-                // ✅ Endpoints públicos
+                // ✅ Endpoints públicos de autenticación
                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                
+                // ✅ Catálogo público (NUEVO - Frontend puede consumir sin autenticación)
+                .requestMatchers("/api/catalog/**").permitAll()
+                
+                // ✅ Productos públicos (mantienes compatibilidad con tu config anterior)
                 .requestMatchers("/api/products/**").permitAll()
+                
+                // ✅ Gemini AI público
                 .requestMatchers("/api/ai/**").permitAll()
 
                 // 🔒 El resto de /api/auth/** requiere token
@@ -119,4 +126,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", cfg);
         return source;
     }
-}
+} 

@@ -3,10 +3,13 @@ package com.cybertec.service;
 import com.cybertec.model.Cart;
 import com.cybertec.model.CartItem;
 import com.cybertec.model.Product;
+import com.cybertec.model.User;
 import com.cybertec.repository.CartRepository;
+import com.cybertec.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
@@ -14,16 +17,19 @@ import java.math.BigDecimal;
  * Servicio de Carrito de Compras
  */
 @Service
+@Transactional
 public class CartService {
 
     private static final Logger log = LoggerFactory.getLogger(CartService.class);
     
     private final CartRepository cartRepository;
     private final ProductService productService;
+    private final UserRepository userRepository;
 
-    public CartService(CartRepository cartRepository, ProductService productService) {
+    public CartService(CartRepository cartRepository, ProductService productService, UserRepository userRepository) {
         this.cartRepository = cartRepository;
         this.productService = productService;
+        this.userRepository = userRepository;
     }
 
     // ========== CRUD ==========
@@ -40,7 +46,13 @@ public class CartService {
 
     private Cart createCartForUser(Long userId) {
         log.info("Creando carrito para usuario ID: {}", userId);
-        Cart cart = new Cart(null, userId);
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        
+        Cart cart = new Cart();
+        cart.setUser(user);
+        
         return cartRepository.save(cart);
     }
 
@@ -124,7 +136,7 @@ public class CartService {
         
         // Validar stock de todos los items
         for (CartItem item : cart.getItems()) {
-            Product product = productService.getProductById(item.getProductId());
+            Product product = productService.getProductById(item.getProduct().getId());
             if (product.getStock() < item.getQuantity()) {
                 throw new RuntimeException(
                     String.format("Stock insuficiente para %s. Disponible: %d, Solicitado: %d",
