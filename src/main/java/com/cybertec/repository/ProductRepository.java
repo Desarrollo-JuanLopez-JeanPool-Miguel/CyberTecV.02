@@ -3,224 +3,168 @@ package com.cybertec.repository;
 import com.cybertec.model.Product;
 import com.cybertec.model.ProductCategory;
 import com.cybertec.model.ProductStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
+
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-
+ 
 /**
- * Repositorio de Productos (ArrayList en memoria)
- * Ubicación: src/main/java/com/cybertec/repository/ProductRepository.java
+ * Repositorio JPA de Productos
+ * Spring Data JPA genera automáticamente la implementación
  * 
  * @author CyberTec Team
- * @version 1.0.0
+ * @version 2.0.0 - Database Version
  */
 @Repository
-public class ProductRepository {
+public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    private final List<Product> products = new ArrayList<>();
-    private final AtomicLong idGenerator = new AtomicLong(1);
-
-    // ========== CRUD Operations ==========
+    // ========== BÚSQUEDAS BÁSICAS ==========
 
     /**
-     * Guardar o actualizar producto
+     * Buscar por SKU (único)
      */
-    public Product save(Product product) {
-        if (product.getId() == null) {
-            // Crear nuevo
-            product.setId(idGenerator.getAndIncrement());
-            products.add(product);
-        } else {
-            // Actualizar existente
-            deleteById(product.getId());
-            products.add(product);
-        }
-        return product;
-    }
+    Optional<Product> findBySku(String sku);
 
     /**
-     * Buscar todos los productos
+     * Verificar si existe por SKU
      */
-    public List<Product> findAll() {
-        return new ArrayList<>(products);
-    }
+    boolean existsBySku(String sku);
 
-    /**
-     * Buscar por ID
-     */
-    public Optional<Product> findById(Long id) {
-        return products.stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst();
-    }
-
-    /**
-     * Buscar por SKU
-     */
-    public Optional<Product> findBySku(String sku) {
-        return products.stream()
-                .filter(p -> p.getSku().equalsIgnoreCase(sku))
-                .findFirst();
-    }
-
-    /**
-     * Eliminar por ID
-     */
-    public void deleteById(Long id) {
-        products.removeIf(p -> p.getId().equals(id));
-    }
-
-    /**
-     * Verificar si existe por ID
-     */
-    public boolean existsById(Long id) {
-        return products.stream()
-                .anyMatch(p -> p.getId().equals(id));
-    }
-
-    /**
-     * Contar productos
-     */
-    public long count() {
-        return products.size();
-    }
-
-    // ========== Búsquedas y Filtros ==========
+    // ========== BÚSQUEDAS POR CATEGORÍA Y ESTADO ==========
 
     /**
      * Buscar por categoría
      */
-    public List<Product> findByCategory(ProductCategory category) {
-        return products.stream()
-                .filter(p -> p.getCategory().equals(category))
-                .collect(Collectors.toList());
-    }
+    List<Product> findByCategory(ProductCategory category);
 
     /**
      * Buscar por estado
      */
-    public List<Product> findByStatus(ProductStatus status) {
-        return products.stream()
-                .filter(p -> p.getStatus().equals(status))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar productos activos con stock
-     */
-    public List<Product> findActiveProductsWithStock() {
-        return products.stream()
-                .filter(p -> p.getStatus().equals(ProductStatus.ACTIVE))
-                .filter(p -> p.getStock() > 0)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar por marca
-     */
-    public List<Product> findByBrand(String brand) {
-        return products.stream()
-                .filter(p -> p.getBrand() != null && 
-                            p.getBrand().equalsIgnoreCase(brand))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar productos con stock bajo
-     */
-    public List<Product> findLowStockProducts() {
-        return products.stream()
-                .filter(Product::isLowStock)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar productos sin stock
-     */
-    public List<Product> findOutOfStockProducts() {
-        return products.stream()
-                .filter(Product::isOutOfStock)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar por nombre (búsqueda parcial)
-     */
-    public List<Product> findByNameContaining(String name) {
-        return products.stream()
-                .filter(p -> p.getName().toLowerCase()
-                            .contains(name.toLowerCase()))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Buscar productos con descuento
-     */
-    public List<Product> findProductsWithDiscount() {
-        return products.stream()
-                .filter(p -> p.getOriginalPrice() != null && 
-                            p.getOriginalPrice().compareTo(p.getPrice()) > 0)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Búsqueda avanzada
-     */
-    public List<Product> searchProducts(String search, ProductCategory category, ProductStatus status) {
-        return products.stream()
-                .filter(p -> {
-                    boolean matchesSearch = search == null || search.isEmpty() ||
-                            p.getName().toLowerCase().contains(search.toLowerCase()) ||
-                            p.getSku().toLowerCase().contains(search.toLowerCase()) ||
-                            (p.getBrand() != null && p.getBrand().toLowerCase().contains(search.toLowerCase()));
-                    
-                    boolean matchesCategory = category == null || p.getCategory().equals(category);
-                    boolean matchesStatus = status == null || p.getStatus().equals(status);
-                    
-                    return matchesSearch && matchesCategory && matchesStatus;
-                })
-                .collect(Collectors.toList());
-    }
+    List<Product> findByStatus(ProductStatus status);
 
     /**
      * Buscar por categoría y estado
      */
-    public List<Product> findByCategoryAndStatus(ProductCategory category, ProductStatus status) {
-        return products.stream()
-                .filter(p -> p.getCategory().equals(category))
-                .filter(p -> p.getStatus().equals(status))
-                .collect(Collectors.toList());
-    }
+    List<Product> findByCategoryAndStatus(ProductCategory category, ProductStatus status);
 
-    // ========== Estadísticas ==========
+    /**
+     * Buscar productos activos con stock
+     */
+    @Query("SELECT p FROM Product p WHERE p.status = 'ACTIVE' AND p.stock > 0")
+    List<Product> findActiveProductsWithStock();
+
+    // ========== BÚSQUEDAS POR MARCA ==========
+
+    /**
+     * Buscar por marca
+     */
+    List<Product> findByBrand(String brand);
+
+    /**
+     * Buscar por marca (case-insensitive)
+     */
+    List<Product> findByBrandIgnoreCase(String brand);
+
+    // ========== BÚSQUEDAS POR STOCK ==========
+
+    /**
+     * Buscar productos con stock bajo
+     * (stock <= minStock)
+     */
+    @Query("SELECT p FROM Product p WHERE p.minStock IS NOT NULL AND p.stock <= p.minStock")
+    List<Product> findLowStockProducts();
+
+    /**
+     * Buscar productos sin stock
+     */
+    @Query("SELECT p FROM Product p WHERE p.stock = 0")
+    List<Product> findOutOfStockProducts();
+
+    // ========== BÚSQUEDAS POR NOMBRE ==========
+
+    /**
+     * Buscar por nombre (búsqueda parcial, case-insensitive)
+     */
+    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<Product> findByNameContaining(@Param("name") String name);
+
+    // ========== BÚSQUEDAS CON DESCUENTO ==========
+
+    /**
+     * Buscar productos con descuento
+     * (originalPrice > price)
+     */
+    @Query("SELECT p FROM Product p WHERE p.originalPrice IS NOT NULL AND p.originalPrice > p.price")
+    List<Product> findProductsWithDiscount();
+
+    // ========== BÚSQUEDA AVANZADA ==========
+
+    /**
+     * Búsqueda avanzada con múltiples filtros
+     * Busca en nombre, SKU y marca
+     */
+    @Query("SELECT p FROM Product p WHERE " +
+           "(:search IS NULL OR :search = '' OR " +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.brand) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:category IS NULL OR p.category = :category) AND " +
+           "(:status IS NULL OR p.status = :status)")
+    List<Product> searchProducts(@Param("search") String search,
+                                 @Param("category") ProductCategory category,
+                                 @Param("status") ProductStatus status);
+
+    // ========== ESTADÍSTICAS ==========
 
     /**
      * Contar por categoría
      */
-    public long countByCategory(ProductCategory category) {
-        return products.stream()
-                .filter(p -> p.getCategory().equals(category))
-                .count();
-    }
+    long countByCategory(ProductCategory category);
 
     /**
      * Contar por estado
      */
-    public long countByStatus(ProductStatus status) {
-        return products.stream()
-                .filter(p -> p.getStatus().equals(status))
-                .count();
-    }
+    long countByStatus(ProductStatus status);
 
     /**
-     * Limpiar todos los productos (útil para testing)
+     * Contar productos activos
      */
-    public void clear() {
-        products.clear();
-        idGenerator.set(1);
-    }
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.status = 'ACTIVE'")
+    long countActiveProducts();
+
+    /**
+     * Contar productos con stock bajo
+     */
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.minStock IS NOT NULL AND p.stock <= p.minStock")
+    long countLowStockProducts();
+
+    /**
+     * Contar productos sin stock
+     */
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.stock = 0")
+    long countOutOfStockProducts();
+
+    // ========== BÚSQUEDAS ORDENADAS ==========
+
+    /**
+     * Buscar productos activos ordenados por nombre
+     */
+    @Query("SELECT p FROM Product p WHERE p.status = 'ACTIVE' ORDER BY p.name ASC")
+    List<Product> findActiveProductsOrderByName();
+
+    /**
+     * Buscar productos más vendidos (por reviewCount)
+     */
+    @Query("SELECT p FROM Product p WHERE p.status = 'ACTIVE' ORDER BY p.reviewCount DESC")
+    List<Product> findTopRatedProducts();
+
+    /**
+     * Buscar productos por categoría ordenados por precio
+     */
+    @Query("SELECT p FROM Product p WHERE p.category = :category AND p.status = 'ACTIVE' ORDER BY p.price ASC")
+    List<Product> findByCategoryOrderByPriceAsc(@Param("category") ProductCategory category);
 }

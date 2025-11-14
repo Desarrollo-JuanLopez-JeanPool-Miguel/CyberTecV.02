@@ -17,8 +17,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Servicio de IA con Gemini para asesoramiento de componentes
- * Ubicación: src/main/java/com/cybertec/ai/GeminiService.java
+ * 
  */
 @Service
 public class GeminiService {

@@ -1,5 +1,6 @@
 package com.cybertec.model;
 
+import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -8,30 +9,48 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Modelo de Carrito de Compras
- * Ubicación: src/main/java/com/cybertec/model/Cart.java
- * 
- * @author CyberTec Team
- * @version 1.0.0
+ * Entidad JPA de Carrito de Compras
  */
+@Entity
+@Table(name = "carts",
+       indexes = {
+           @Index(name = "idx_cart_user", columnList = "user_id")
+       })
 public class Cart {
     
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotNull(message = "El usuario es obligatorio")
-    private Long userId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false, unique = true,
+                foreignKey = @ForeignKey(name = "fk_cart_user"))
+    private User user;
     
-    private List<CartItem> items;
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, 
+               orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<CartItem> items = new ArrayList<>();
     
-    private BigDecimal subtotal;
-    private BigDecimal discount;
-    private BigDecimal shipping;
-    private BigDecimal total;
+    @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotal = BigDecimal.ZERO;
     
+    @Column(name = "discount", precision = 12, scale = 2)
+    private BigDecimal discount = BigDecimal.ZERO;
+    
+    @Column(name = "shipping", precision = 12, scale = 2)
+    private BigDecimal shipping = BigDecimal.ZERO;
+    
+    @Column(name = "total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal total = BigDecimal.ZERO;
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+    
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // Constructores
+    // ========== CONSTRUCTORES ==========
+
     public Cart() {
         this.items = new ArrayList<>();
         this.subtotal = BigDecimal.ZERO;
@@ -42,170 +61,170 @@ public class Cart {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public Cart(Long id, Long userId) {
-        this();
-        this.id = id;
-        this.userId = userId;
+    // ========== GETTERS Y SETTERS ==========
+
+    public Long getId() {
+        return id;
     }
 
-    // Getters y Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public void setId(Long id) {
+      this.id = id;
+    }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public User getUser() {
+        return user;
+    }
 
-    public List<CartItem> getItems() { return items; }
-    public void setItems(List<CartItem> items) { 
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public List<CartItem> getItems() {
+        return items;
+    }
+
+    public void setItems(List<CartItem> items) {
         this.items = items;
         calculateTotals();
     }
 
-    public BigDecimal getSubtotal() { 
+    public BigDecimal getSubtotal() {
         calculateTotals();
-        return subtotal; 
+        return subtotal;
     }
 
-    public BigDecimal getDiscount() { return discount; }
-    public void setDiscount(BigDecimal discount) { 
+    public void setSubtotal(BigDecimal subtotal) {
+        this.subtotal = subtotal;
+    }
+
+    public BigDecimal getDiscount() {
+        return discount;
+    }
+
+    public void setDiscount(BigDecimal discount) {
         this.discount = discount;
         calculateTotals();
     }
 
-    public BigDecimal getShipping() { return shipping; }
-    public void setShipping(BigDecimal shipping) { 
+    public BigDecimal getShipping() {
+        return shipping;
+    }
+
+    public void setShipping(BigDecimal shipping) {
         this.shipping = shipping;
         calculateTotals();
     }
 
-    public BigDecimal getTotal() { 
+    public BigDecimal getTotal() {
         calculateTotals();
-        return total; 
+        return total;
     }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setTotal(BigDecimal total) {
+        this.total = total;
+    }
 
-    // Métodos de utilidad
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
 
-    /**
-     * Agregar un item al carrito
-     */
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    // ========== MÉTODOS DE UTILIDAD ==========
+
     public void addItem(CartItem item) {
-        // Buscar si ya existe el producto
-        CartItem existingItem = findItemByProductId(item.getProductId());
+        CartItem existingItem = findItemByProductId(item.getProduct().getId());
         
         if (existingItem != null) {
-            // Si existe, incrementar cantidad
-            existingItem.setQuantity(existingItem.getQuantity() + item.getQuantity());
+          existingItem.setQuantity(existingItem.getQuantity() + item.getQuantity());
         } else {
-            // Si no existe, agregar nuevo
-            this.items.add(item);
+            items.add(item);
+            item.setCart(this);
         }
-        
-        this.updatedAt = LocalDateTime.now();
+             calculateTotals();
+    }
+   public void removeItem(Long productId) {
+        items.removeIf(item -> item.getProduct().getId().equals(productId));
         calculateTotals();
     }
 
-    /**
-     * Remover un item del carrito
-     */
-    public void removeItem(Long productId) {
-        this.items.removeIf(item -> item.getProductId().equals(productId));
-        this.updatedAt = LocalDateTime.now();
-        calculateTotals();
-    }
-
-    /**
-     * Actualizar cantidad de un item
-     */
-    public void updateItemQuantity(Long productId, Integer quantity) {
+public void updateItemQuantity(Long productId, Integer quantity) {
         CartItem item = findItemByProductId(productId);
         if (item != null) {
             if (quantity <= 0) {
                 removeItem(productId);
             } else {
                 item.setQuantity(quantity);
-                this.updatedAt = LocalDateTime.now();
-                calculateTotals();
+                                calculateTotals();
             }
         }
     }
 
-    /**
-     * Limpiar el carrito
-     */
-    public void clear() {
-        this.items.clear();
-        this.subtotal = BigDecimal.ZERO;
-        this.discount = BigDecimal.ZERO;
-        this.shipping = BigDecimal.ZERO;
-        this.total = BigDecimal.ZERO;
-        this.updatedAt = LocalDateTime.now();
+public void clear() {
+        items.clear();
+        subtotal = BigDecimal.ZERO;
+        discount = BigDecimal.ZERO;
+        shipping = BigDecimal.ZERO;
+        total = BigDecimal.ZERO;
     }
 
-    /**
-     * Buscar item por ID de producto
-     */
     private CartItem findItemByProductId(Long productId) {
         return items.stream()
-                .filter(item -> item.getProductId().equals(productId))
+                .filter(item -> item.getProduct().getId().equals(productId))
                 .findFirst()
                 .orElse(null);
     }
 
-    /**
-     * Calcular totales del carrito
-     */
-    private void calculateTotals() {
-        // Calcular subtotal
+    public void calculateTotals() {
         this.subtotal = items.stream()
                 .map(CartItem::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        
-        // Calcular total: subtotal - descuento + envío
+                .reduce(BigDecimal.ZERO, BigDecimal::add);        
         this.total = this.subtotal
-                .subtract(this.discount)
-                .add(this.shipping);
-        
-        // No permitir totales negativos
+                .subtract(this.discount != null ? this.discount : BigDecimal.ZERO)
+                .add(this.shipping != null ? this.shipping : BigDecimal.ZERO);
+
         if (this.total.compareTo(BigDecimal.ZERO) < 0) {
             this.total = BigDecimal.ZERO;
         }
     }
-
-    /**
-     * Obtener cantidad total de items
-     */
-    public int getTotalItems() {
+public int getTotalItems() {
         return items.stream()
                 .mapToInt(CartItem::getQuantity)
                 .sum();
     }
 
-    /**
-     * Verificar si el carrito está vacío
-     */
-    public boolean isEmpty() {
+   public boolean isEmpty() {
         return items.isEmpty();
     }
-
-    /**
-     * Verificar si tiene un producto específico
-     */
-    public boolean hasProduct(Long productId) {
+ public boolean hasProduct(Long productId) {
         return items.stream()
-                .anyMatch(item -> item.getProductId().equals(productId));
+                .anyMatch(item -> item.getProduct().getId().equals(productId));
     }
 
-    @Override
-    public String toString() {
-        return "Cart{" +
-                "id=" + id +
-                ", userId=" + userId +
-                ", itemsCount=" + items.size() +
-                ", total=" + total +
-                '}';
+    @PrePersist
+    protected void onCreate() {
+        if (subtotal == null) subtotal = BigDecimal.ZERO;
+        if (discount == null) discount = BigDecimal.ZERO;
+        if (shipping == null) shipping = BigDecimal.ZERO;
+        if (total == null) total = BigDecimal.ZERO;
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+        calculateTotals();
     }
 
     @Override
@@ -213,11 +232,21 @@ public class Cart {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Cart cart = (Cart) o;
-        return Objects.equals(id, cart.id) && Objects.equals(userId, cart.userId);
+        return Objects.equals(id, cart.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, userId);
+        return Objects.hash(id);
+    }
+
+    @Override
+    public String toString() {
+        return "Cart{" +
+                "id=" + id +
+                ", userId=" + (user != null ? user.getId() : null) +
+                ", itemsCount=" + items.size() +
+                ", total=" + total +
+                '}';
     }
 }
