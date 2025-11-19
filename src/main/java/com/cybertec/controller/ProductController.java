@@ -4,202 +4,182 @@ import com.cybertec.model.Product;
 import com.cybertec.model.ProductCategory;
 import com.cybertec.model.ProductStatus;
 import com.cybertec.service.ProductService;
-import jakarta.validation.Valid;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * Controller de Productos
+ * Controlador de Productos (Admin)
+ * Endpoints CRUD para gestión de productos
  */
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = {"http://localhost:5500", "http://127.0.0.1:5500"})
+@CrossOrigin(origins = "*")
+@Tag(name = "Productos (Admin)", description = "Gestión de productos - Requiere rol ADMIN")
 public class ProductController {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductController.class);
     private final ProductService productService;
 
     public ProductController(ProductService productService) {
         this.productService = productService;
     }
 
+
     /**
+     * Obtener todos los productos (Admin puede ver todos, incluidos inactivos)
      * GET /api/products
-     * Obtener todos los productos
-     */
+     *      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Listar todos los productos (Admin)", 
+               description = "Admin puede ver productos en cualquier estado")
     public ResponseEntity<List<Product>> getAllProducts() {
-        log.info("GET /api/products");
-        return ResponseEntity.ok(productService.getAllProducts());
+     return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    /**
+    /**     * Obtener producto por ID
      * GET /api/products/{id}
-     * Obtener producto por ID
-     */
+ */
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
-        log.info("GET /api/products/{}", id);
-        return ResponseEntity.ok(productService.getProductById(id));
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Obtener producto por ID")
+    public ResponseEntity<Product> getProductById(@PathVariable Long id) {       
+         return ResponseEntity.ok(productService.getProductById(id));
     }
 
     /**
-     * GET /api/products/sku/{sku}
-     * Obtener producto por SKU
-     */
-    @GetMapping("/sku/{sku}")
-    public ResponseEntity<Product> getProductBySku(@PathVariable String sku) {
-        log.info("GET /api/products/sku/{}", sku);
-        return ResponseEntity.ok(productService.getProductBySku(sku));
-    }
-
-    /**
+     * Buscar productos por categoría
      * GET /api/products/category/{category}
-     * Obtener productos por categoría
-     */
+ */
     @GetMapping("/category/{category}")
-    public ResponseEntity<List<Product>> getProductsByCategory(@PathVariable String category) {
-        log.info("GET /api/products/category/{}", category);
-        ProductCategory productCategory = ProductCategory.fromCode(category);
-        return ResponseEntity.ok(productService.getProductsByCategory(productCategory));
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Filtrar productos por categoría")
+    public ResponseEntity<List<Product>> getProductsByCategory(@PathVariable ProductCategory category) {
+        return ResponseEntity.ok(productService.getProductsByCategory(category));
     }
 
     /**
-     * GET /api/products/status/{status}
-     * Obtener productos por estado
-     */
+     * Buscar productos por estado
+     * GET /api/products/status/{status}     */
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Product>> getProductsByStatus(@PathVariable String status) {
-        log.info("GET /api/products/status/{}", status);
-        ProductStatus productStatus = ProductStatus.fromCode(status);
-        return ResponseEntity.ok(productService.getProductsByStatus(productStatus));
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Filtrar productos por estado")
+    public ResponseEntity<List<Product>> getProductsByStatus(@PathVariable ProductStatus status) {
+        return ResponseEntity.ok(productService.getProductsByStatus(status));
     }
 
-    /**
-     * GET /api/products/active
-     * Obtener productos activos con stock
-     */
-    @GetMapping("/active")
-    public ResponseEntity<List<Product>> getActiveProducts() {
-        log.info("GET /api/products/active");
-        return ResponseEntity.ok(productService.getActiveProducts());
-    }
+    // ========== CREACIÓN (Admin) ==========
 
     /**
-     * GET /api/products/discounts
-     * Obtener productos con descuento
-     */
-    @GetMapping("/discounts")
-    public ResponseEntity<List<Product>> getProductsWithDiscount() {
-        log.info("GET /api/products/discounts");
-        return ResponseEntity.ok(productService.getProductsWithDiscount());
-    }
-
-    /**
-     * GET /api/products/search
-     * Búsqueda avanzada
-     */
-    @GetMapping("/search")
-    public ResponseEntity<List<Product>> searchProducts(
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String status) {
-        log.info("GET /api/products/search - query: {}, category: {}, status: {}", query, category, status);
-        
-        ProductCategory productCategory = category != null ? ProductCategory.fromCode(category) : null;
-        ProductStatus productStatus = status != null ? ProductStatus.fromCode(status) : null;
-        
-        return ResponseEntity.ok(productService.searchProducts(query, productCategory, productStatus));
-    }
-
-    /**
+     * Crear nuevo producto
      * POST /api/products
-     * Crear producto (Solo ADMIN)
-     */
+ */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Product> createProduct(@Valid @RequestBody Product product) {
-        log.info("POST /api/products - Creating: {}", product.getName());
-        Product created = productService.createProduct(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Crear nuevo producto", description = "Solo ADMIN")
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(productService.createProduct(product));
     }
 
+    // ========== ACTUALIZACIÓN (Admin) ==========
+
     /**
-     * PUT /api/products/{id}
-     * Actualizar producto (Solo ADMIN)
+     * Actualizar producto existente     * PUT /api/products/{id}
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Actualizar producto", description = "Solo ADMIN")
     public ResponseEntity<Product> updateProduct(
             @PathVariable Long id,
-            @Valid @RequestBody Product product) {
-        log.info("PUT /api/products/{}", id);
+            @RequestBody Product productDetails) {
+        return ResponseEntity.ok(productService.updateProduct(id, productDetails));
+    }
+
+    /**
+     * Actualizar stock de un producto
+     * PATCH /api/products/{id}/stock
+  */
+    @PatchMapping("/{id}/stock")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Actualizar stock", description = "Solo ADMIN")
+    public ResponseEntity<Product> updateStock(
+            @PathVariable Long id,
+            @RequestParam Integer stock) {
+        Product product = productService.getProductById(id);
+        product.setStock(stock);
         return ResponseEntity.ok(productService.updateProduct(id, product));
     }
 
     /**
+     * Cambiar estado de un producto
+     * PATCH /api/products/{id}/status
+     */
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Cambiar estado del producto", description = "Solo ADMIN")
+    public ResponseEntity<Product> updateStatus(
+            @PathVariable Long id,
+            @RequestParam ProductStatus status) {
+        Product product = productService.getProductById(id);
+        product.setStatus(status);
+        return ResponseEntity.ok(productService.updateProduct(id, product));
+    }
+
+    // ========== ELIMINACIÓN (Admin) ==========
+
+    /**
+     * Eliminar producto
      * DELETE /api/products/{id}
-     * Eliminar producto (Solo ADMIN)
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
-        log.info("DELETE /api/products/{}", id);
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Eliminar producto", description = "Solo ADMIN")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
-        return ResponseEntity.ok(Map.of("message", "Producto eliminado exitosamente"));
+        return ResponseEntity.noContent().build();
     }
 
-    /**
-     * PATCH /api/products/{id}/stock
-     * Actualizar stock (Solo ADMIN)
-     */
-    @PatchMapping("/{id}/stock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Product> updateStock(
-            @PathVariable Long id,
-            @RequestBody Map<String, Integer> request) {
-        log.info("PATCH /api/products/{}/stock", id);
-        Integer quantity = request.get("quantity");
-        return ResponseEntity.ok(productService.updateStock(id, quantity));
-    }
+    // ========== ESTADÍSTICAS (Admin) ==========
 
     /**
+     * Obtener estadísticas de inventario
      * GET /api/products/stats
-     * Estadísticas de inventario (Solo ADMIN)
      */
     @GetMapping("/stats")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> getInventoryStats() {
-        log.info("GET /api/products/stats");
-        return ResponseEntity.ok(productService.getInventoryStats());
-    }
+    @SecurityRequirement(name = "Bearer Authentication")
+    @Operation(summary = "Estadísticas de inventario", description = "Solo ADMIN")
+    public ResponseEntity<Object> getInventoryStats() {
+        long totalProducts = productService.getAllProducts().size();
+        long activeProducts = productService.getProductsByStatus(ProductStatus.ACTIVE).size();
+        long lowStockProducts = productService.getAllProducts().stream()
+                .filter(Product::isLowStock)
+                .count();
+        long outOfStockProducts = productService.getAllProducts().stream()
+                .filter(Product::isOutOfStock)
+                .count();
 
-    /**
-     * GET /api/products/stats/category
-     * Conteo por categoría (Solo ADMIN)
-     */
-    @GetMapping("/stats/category")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Long>> getProductCountByCategory() {
-        log.info("GET /api/products/stats/category");
-        return ResponseEntity.ok(productService.getProductCountByCategory());
-    }
-
-    /**
-     * GET /api/products/low-stock
-     * Productos con stock bajo (Solo ADMIN)
-     */
-    @GetMapping("/low-stock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Product>> getLowStockProducts() {
-        log.info("GET /api/products/low-stock");
-        return ResponseEntity.ok(productService.getLowStockProducts());
+        return ResponseEntity.ok(java.util.Map.of(
+            "totalProducts", totalProducts,
+            "activeProducts", activeProducts,
+            "lowStockProducts", lowStockProducts,
+            "outOfStockProducts", outOfStockProducts
+        ));
     }
 }
