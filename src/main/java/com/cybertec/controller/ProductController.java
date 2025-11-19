@@ -17,6 +17,7 @@ import java.util.List;
 /**
  * Controlador de Productos (Admin)
  * Endpoints CRUD para gestión de productos
+ * JP
  */
 @RestController
 @RequestMapping("/api/products")
